@@ -15,7 +15,8 @@ from utils import *
 d = path.dirname(__file__)
 
 tagger = POSTagger(model=path.join(d, 'resources/postagger.model'))
-chunker = Chunker(model=path.join(d, 'resources/chunker.model'))
+normalizer = Normalizer()
+# chunker = Chunker(model=path.join(d, 'resources/chunker.model'))
 
 
 TypeBlacklist = [
@@ -94,12 +95,24 @@ for tweet in finderCursor:
         if tweet['id_str'] not in checked:
             checked[tweet_id] = 0
 
-    if checked[tweet_id] % 10 != 0:
+    if checked[tweet_id] % 40 != 0:
+        checked[tweet_id] += 1
         continue
+
+    checked[tweet_id] += 1
+    txt = normalizer.normalize(txt)
     tagged_txt = tagger.tag(word_tokenize(txt))
-    phrase_list = tree2list(chunker.parse(tagged_txt))
+    for word in tagged_txt:
+        if is_perisan(word[0]) and word[1] not in TypeBlacklist:
+            if word[0] not in stopwords:
+                try:
+                    convert(' ' + word[0])
+                    all_words.append(normalize(word[0]))
+                except:
+                    print("e")
+#    phrase_list = tree2list(chunker.parse(tagged_txt))
     # print(phrase_list)
-    for phrase in phrase_list:
+'''    for phrase in phrase_list:
         if phrase[1] is TypeBlacklist:
             continue
         final_word = ''
@@ -113,6 +126,7 @@ for tweet in finderCursor:
                     except:
                         print("e")
         all_words.append( normalize(final_word) )
+'''
 
 text = '\n'.join(all_words)
 #print(text)
