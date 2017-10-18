@@ -1,11 +1,127 @@
 from __future__ import unicode_literals
 from hazm import *
+import tweepy
+import telegram
 from nltk.chunk import tree2conlltags
 from PIL import Image
 from os import path
 import tempfile
 import shutil
 import urllib.request
+from config import *
+
+telegram_bot = telegram.Bot(token=telegram_bot_token)
+normalizer = Normalizer()
+
+def getTweetText(tweet):
+    # gets the main tweet text!
+    if 'extended_tweet' in tweet:
+        return tweet['extended_tweet']['full_text']
+    return tweet['text']
+
+def addFooter(tweet, tp = 'HTML'):
+    # adds some footer to tweet generated for telegram Channel
+    if tp == 'HTML':
+        ret = u'<a href=\"' + 'https://twitter.com/' + tweet['user']['screen_name'] + '/status/' + tweet['id_str'] + '\">لینک به توییت</a>'
+        ret += u'\n<a href="https://twitter.com/' + tweet['user']['screen_name'] + '">@' + tweet['user']['screen_name'] + '</a>\n'
+        ret += '\n\n📡 @trenditter 📡'
+    else:
+        ret = 'twitter.com/' + 'statuses/' + tweet['id_str'] + '\n'
+        ret += '@trenditter'
+    return ret
+
+def getEntities(tweet):
+    # gets tweet entities (full entities)!
+    if 'extended_tweet' in tweet:
+        return getEntities(tweet['extended_tweet'])
+
+    if 'extended_entities' in tweet:
+        return tweet['extended_entities']
+
+    if 'entities' in tweet:
+        return tweet['entities']
+
+def getTweetType(tweet):
+    # gets tweet type (video, photo, text)
+    entities = getEntities(tweet)
+
+    if 'media' not in entities:
+        return 'text'
+
+    media = entities['media']
+
+    return media[0]['type']
+
+
+
+def sendToTelegram(tweet, desc=""):
+    # send tweet passed as argument to telegram channel! (first normalize it then send it as whatever it is [video, photo ...])
+    tweet_text = getTweetText(tweet)
+    tweet_text = tweet_text
+    desc = normalizer.normalize(desc)
+
+    text = ''
+    pre = ' '.join(re.sub("(@[A-Za-z0-9_]+)|(?:\@|https?\://)\S+", " ", tweet_text).split())
+    pre = normalizer.normalize(pre)
+
+    text += tweet['user']['name'] + u":\n"
+    text += pre + '\n'
+
+    Type = getTweetType(tweet)
+
+    if Type == 'text':
+        text += '\n' + desc + '\n\n'
+        text += addFooter(tweet, 'HTML')
+        ret = telegram_bot.sendMessage(chat_id="@trenditter", text=text, parse_mode=telegram.ParseMode.HTML)
+
+    elif Type == 'photo':
+
+        text += addFooter(tweet, 'PLAIN')
+
+        entities = getEntities(tweet)
+        tempdir = create_temp()
+
+        images = [save_file(tempdir, media['media_url']) for media in entities['media']]
+
+        output_name = path.join(tempdir, "collage.png")
+
+        if len(images) > 1:
+            width = 1600
+            init_height = 800
+
+            make_collage(images, output_name, width, init_height)
+        else:
+            output_name = images[0]
+
+        ret = telegram_bot.send_photo(chat_id="@trenditter", photo=open(output_name, 'rb'), caption=text)
+
+        remove_dir(tempdir)
+
+    else:
+
+        text += addFooter(tweet, 'PLAIN')
+        entities = getEntities(tweet)
+        tempdir = create_temp()
+
+        videos = entities['media'][0]['video_info']['variants']
+
+        for video in videos:
+            if video['content_type'] == 'video/mp4':
+                video_path = video['url']
+
+        ret = telegram_bot.send_video(chat_id="@trenditter", video=video_path, caption=text)
+
+    return ret
+
+def retweetTweet(tweet_json, desc=""):
+    # gets some tweet (in json format from api) and then sends it to Telegram Channel and retweets it!
+    auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+    auth.set_access_token(access_token, access_token_secret)
+    api = tweepy.API(auth)
+
+    api.retweet(tweet_json['retweeted_status']['id_str'])
+    maxLikesTG = sendToTelegram(tweet_json['retweeted_status'], desc)
+    telegram_bot.forwardMessage(chat_id=admin_id, from_chat_id="@trenditter", message_id=maxLikesTG.message_id)
 
 def normalize(str):
     if len(str) == 0:
