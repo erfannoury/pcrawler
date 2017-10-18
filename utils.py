@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 from hazm import *
 import tweepy
 import telegram
+import re
 from nltk.chunk import tree2conlltags
 from PIL import Image
 from os import path
