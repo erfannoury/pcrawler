@@ -16,21 +16,23 @@ d = path.dirname(__file__)
 
 tagger = POSTagger(model=path.join(d, 'resources/postagger.model'))
 normalizer = Normalizer()
+stemmer = Stemmer()
+lemmatizer = Lemmatizer()
 # chunker = Chunker(model=path.join(d, 'resources/chunker.model'))
 
 
 TypeBlacklist = [
-    'PRO',
-    'V',
-    'ADV',
-    'AJ',
+    # 'PRO',
+    # 'V',
+    # 'ADV',
+    # 'AJ',
     'CONJ',
     'PUNC',
-    'RES',
-    'AJe',
-    'Ne',
-    'P',
-    'POSTP',
+    # 'RES',
+    # 'AJe',
+    # 'Ne',
+    # 'P',
+    # 'POSTP',
     'ADJP'
 ]
 
@@ -67,6 +69,8 @@ STOPWORDS.add('اون')
 STOPWORDS.add('کردن')
 STOPWORDS.add('نمی')
 STOPWORDS.add('های')
+STOPWORDS.add('باید')
+STOPWORDS.add('دیگه')
 stopwords = set(STOPWORDS)
 stopwords_list = open(path.join(d, 'blacklist.txt')).read()
 for word in stopwords_list.split():
@@ -89,27 +93,38 @@ for tweet in finderCursor:
         txt = tweet['retweeted_status']['text']
         if tweet['retweeted_status']['id_str'] not in checked:
             checked[tweet_id] = 0
+        else:
+            continue
     else:
         tweet_id = tweet['id_str']
         txt = tweet['text']
         if tweet['id_str'] not in checked:
             checked[tweet_id] = 0
+        else:
+            continue
 
-    if checked[tweet_id] % 40 != 0:
-        checked[tweet_id] += 1
-        continue
+    # if checked[tweet_id] % 40 != 0:
+    #     checked[tweet_id] += 1
+    #     continue
 
     checked[tweet_id] += 1
+    # tweet_cnt += 1
     txt = normalizer.normalize(txt)
-    tagged_txt = tagger.tag(word_tokenize(txt))
-    for word in tagged_txt:
-        if is_perisan(word[0]) and word[1] not in TypeBlacklist:
-            if word[0] not in stopwords:
-                try:
-                    convert(' ' + word[0])
-                    all_words.append(normalize(word[0]))
-                except:
-                    print("e")
+    for sentence in sent_tokenize(txt):
+        tagged_txt = tagger.tag(word_tokenize(sentence))
+        for word in tagged_txt:
+            if is_perisan(word[0]) and word[1] not in TypeBlacklist:
+                if word[0] not in stopwords:
+                    try:
+                        convert(' ' + word[0])
+                        new_stemmed_word = stemmer.stem(word[0])
+                        new_lemmatized_word = lemmatizer.lemmatize(word[0], pos=word[1])
+                        if word[1] == 'V':
+                            new_lemmatized_word = new_lemmatized_word.split('#')[0]
+                        all_words.append(normalize(new_lemmatized_word))
+                    except:
+                        print("e")
+                        print(word[0])
 #    phrase_list = tree2list(chunker.parse(tagged_txt))
     # print(phrase_list)
 '''    for phrase in phrase_list:
@@ -162,4 +177,4 @@ wctg = telegram_bot.send_photo(chat_id="@trenditter", photo=open(path.join(d, ou
 
 telegram_bot.forwardMessage(chat_id="322219318", from_chat_id="@trenditter", message_id=wctg.message_id)
 
-#telegram_bot.send_photo(chat_id=admin_id, photo=open(path.join(d, output_name), 'rb'), caption=u'توییتر به روایت تصویر پس از پردازش ' + str(tweet_cnt) + u' توییت!')
+# telegram_bot.send_photo(chat_id=admin_id, photo=open(path.join(d, output_name), 'rb'), caption=u'توییتر به روایت تصویر پس از پردازش ' + str(tweet_cnt) + u' توییت!')
