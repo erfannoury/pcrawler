@@ -27,8 +27,8 @@ def addFooter(tweet, tp = 'HTML'):
         ret += u'\n<a href="https://twitter.com/' + tweet['user']['screen_name'] + '">@' + tweet['user']['screen_name'] + '</a>\n'
         ret += '\n\n📡 @trenditter 📡'
     else:
-        ret = 'twitter.com/' + 'statuses/' + tweet['id_str'] + '\n'
-        ret += '@trenditter'
+        # ret = 'twitter.com/' + 'statuses/' + tweet['id_str'] + '\n'
+        ret = '\n@trenditter'
     return ret
 
 def getEntities(tweet):
@@ -53,22 +53,53 @@ def getTweetType(tweet):
 
     return media[0]['type']
 
+def getPhotos(tweet):
+    # returns list of photos in tweet
+    entities = tweet['entities']
+    photos_list = [media for media in entities['media']]
+    return photos_list
 
+def getURLs(tweet):
+    if 'extended_tweet' in tweet:
+        return getURLs(tweet['extended_tweet'])
+
+    entities_urls = tweet['entities']['urls']
+    return entities_urls
+
+def getHashtags(tweet):
+    if 'extended_tweet' in tweet:
+        return getHashtags(tweet['extended_tweet'])
+
+    hashtagsEntities = tweet['entities']['hashtags']
+    return hashtagsEntities
 
 def sendToTelegram(tweet, desc=""):
     # send tweet passed as argument to telegram channel! (first normalize it then send it as whatever it is [video, photo ...])
     tweet_text = getTweetText(tweet)
-    tweet_text = tweet_text
     desc = normalizer.normalize(desc)
+    Type = getTweetType(tweet)
+
+    try:
+        photos_list = getPhotos(tweet)
+        for photo in photos_list:
+            tweet_text = re.sub(photo['url'], "", tweet_text)
+    except:
+        print("tweet has no photos")
+
+    try:
+        urls_list = getURLs(tweet)
+        for url in urls_list:
+            if Type == 'text':
+                tweet_text = re.sub(url['url'], "<a href='{}'>{}</a>".format(url['expanded_url'], url['display_url']), tweet_text)
+    except:
+        print("tweet has no urls!")
 
     text = ''
-    pre = ' '.join(re.sub("(@[A-Za-z0-9_]+)|(?:\@|https?\://)\S+", " ", tweet_text).split())
+    pre = re.sub("(@[A-Za-z0-9_]+)\S+", " ", tweet_text)
     pre = normalizer.normalize(pre)
 
     text += tweet['user']['name'] + u":\n"
     text += pre + '\n'
-
-    Type = getTweetType(tweet)
 
     if Type == 'text':
         text += '\n' + desc + '\n\n'
