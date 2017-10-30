@@ -5,6 +5,7 @@ import time
 from mongoHandler import MongoHandler
 from config import *
 from os import path
+from utils import getHashtags
 
 d = path.dirname(__file__)
 
@@ -17,17 +18,10 @@ class StdOutListener(tweepy.StreamListener):
 
     _mongo = MongoHandler(mongo_connString, mongo_db, mongo_collection)
     _blacklist = open(path.join(d, 'users_blacklist.txt')).read().split()
+    _hashtags_blacklist = open(path.join(d, 'hashtags_blacklist.txt')).read().split()
 
     def on_data(self, data):
         tweet = json.loads(data)
-        #if 'retweeted_status' in tweet:
-            #tweet_cnt = self._mongo._collection.find({"retweeted_status.id_str": tweet['retweeted_status']['id_str']}).count()
-            #if tweet_cnt:
-            #    self._mongo._collection.update_many({"retweeted_status.id_str": tweet['retweeted_status']['id_str']},
-            #                                        {'$set': {"retweeted_status.favorite_count": tweet['retweeted_status']['favorite_count']}})
-            #    self._mongo._collection.update_many({"retweeted_status.id_str": tweet['retweeted_status']['id_str']},
-            #                                        {'$set': {"retweeted_status.retweet_count": tweet['retweeted_status']['retweet_count']}})
-            #    return True
         if 'retweeted_status' in tweet:
             tcreated = datetime.datetime.strptime(tweet['retweeted_status']['created_at'], '%a %b %d %H:%M:%S %z %Y').replace(tzinfo=None)
             tweet['retweeted_status']['created_at'] = tcreated
@@ -39,7 +33,10 @@ class StdOutListener(tweepy.StreamListener):
             tweet_text = tweet['text']
             sender = tweet['user']['screen_name']
 
-        if u'ة' not in tweet_text and u'أ' not in tweet_text and sender not in self._blacklist:
+        hashtags_entities = getHashtags(tweet)
+        hashtags_list = [hashtag['text'] in self._hashtags_blacklist for hashtag in hashtags_entities]
+
+        if u'ة' not in tweet_text and u'أ' not in tweet_text and sender not in self._blacklist and True not in hashtags_list:
             self._mongo.insert(tweet)
         return True
 
