@@ -27,23 +27,29 @@ findQuery = {"retweeted_status.created_at": {'$gte': LastTweetToCheck}}
 finderCursor = mongo._collection.find(findQuery).limit(4000).sort('retweeted_status.favorite_count', pymongo.DESCENDING)
 print(finderCursor.count())
 for tweet in finderCursor:
-    realStatus = api.get_status(tweet['retweeted_status']['id_str'])
-    if realStatus.retweeted:
-        continue
-    if maxLikes is None:
-        maxLikes = tweet.copy()
-        break
+    try:
+        realStatus = api.get_status(tweet['retweeted_status']['id_str'])
+        if realStatus.retweeted:
+            continue
+        if maxLikes is None:
+            maxLikes = tweet.copy()
+            break
+    except:
+        print(tweet['retweeted_status']['id_str'])
 
 print("got likes!")
 
 finderCursor = mongo._collection.find(findQuery).limit(4000).sort('retweeted_status.retweet_count', pymongo.DESCENDING)
 for tweet in finderCursor:
-    realStatus = api.get_status(tweet['retweeted_status']['id_str'])
-    if realStatus.retweeted:
-        continue
-    if maxRetweets is None:
-        maxRetweets = tweet.copy()
-        break
+    try:
+        realStatus = api.get_status(tweet['retweeted_status']['id_str'])
+        if realStatus.retweeted:
+            continue
+        if maxRetweets is None:
+            maxRetweets = tweet.copy()
+            break
+    except:
+        print(tweet['retweeted_status']['id_str'])
 
 print("got retweets!")
 
