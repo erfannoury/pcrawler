@@ -20,6 +20,8 @@ api = tweepy.API(auth)
 maxLikes = None
 maxRetweets = None
 
+checkedTweets_likes = {}
+checkedTweets_rts = {}
 
 mongo = MongoHandler(mongo_connString, mongo_db, mongo_collection)
 LastTweetToCheck = datetime.datetime.utcnow() - datetime.timedelta(seconds=checkTweetsWithin)
@@ -28,6 +30,9 @@ finderCursor = mongo._collection.find(findQuery).limit(4000).sort('retweeted_sta
 print(finderCursor.count())
 for tweet in finderCursor:
     try:
+        if tweet['retweeted_status']['id_str'] in checkedTweets_likes:
+            continue
+        checkedTweets_likes[ tweet['retweeted_status']['id_str'] ] = 1
         realStatus = api.get_status(tweet['retweeted_status']['id_str'])
         if realStatus.retweeted:
             continue
@@ -42,6 +47,9 @@ print("got likes!")
 finderCursor = mongo._collection.find(findQuery).limit(4000).sort('retweeted_status.retweet_count', pymongo.DESCENDING)
 for tweet in finderCursor:
     try:
+        if tweet['retweeted_status']['id_str'] in checkedTweets_rts:
+            continue
+        checkedTweets_rts[ tweet['retweeted_status']['id_str'] ] = 1
         realStatus = api.get_status(tweet['retweeted_status']['id_str'])
         if realStatus.retweeted:
             continue
