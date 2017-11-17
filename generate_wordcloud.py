@@ -22,17 +22,8 @@ lemmatizer = Lemmatizer()
 
 
 TypeBlacklist = [
-    # 'PRO',
-    # 'V',
-    # 'ADV',
-    # 'AJ',
     'CONJ',
     'PUNC',
-    # 'RES',
-    # 'AJe',
-    # 'Ne',
-    # 'P',
-    # 'POSTP',
     'ADJP'
 ]
 
@@ -103,17 +94,13 @@ for tweet in finderCursor:
         else:
             continue
 
-    # if checked[tweet_id] % 40 != 0:
-    #     checked[tweet_id] += 1
-    #     continue
-
     checked[tweet_id] += 1
-    # tweet_cnt += 1
+    txt = re.sub("(@[A-Za-z0-9_]+)|(?:\@|https?\://)\S+", " ", txt)
     txt = normalizer.normalize(txt)
     for sentence in sent_tokenize(txt):
         tagged_txt = tagger.tag(word_tokenize(sentence))
         for word in tagged_txt:
-            if is_perisan(word[0]) and word[1] not in TypeBlacklist:
+            if word[1] not in TypeBlacklist:
                 if word[0] not in stopwords:
                     try:
                         convert(' ' + word[0])
@@ -124,42 +111,21 @@ for tweet in finderCursor:
                         all_words.append(normalize(new_lemmatized_word))
                     except:
                         print("e")
-                        print(word[0])
-#    phrase_list = tree2list(chunker.parse(tagged_txt))
-    # print(phrase_list)
-'''    for phrase in phrase_list:
-        if phrase[1] is TypeBlacklist:
-            continue
-        final_word = ''
-        for word in phrase[0].split():
-            if is_perisan(word):
-                if word not in stopwords:
-                    try:
-                        convert(' ' + word)
-                        # all_words.append(word)
-                        final_word += word + u'‌'
-                    except:
-                        print("e")
-        all_words.append( normalize(final_word) )
-'''
 
 text = '\n'.join(all_words)
-#print(text)
-#text = ' '.join(all_words)
 print("finished")
 
 # loading the mask
 twitter_mask = np.array(Image.open(path.join(d, "twitter_mask.png")))
 
 # generating wordcloud
-wc = PersianWordCloud(only_persian=True, regexp=r".*\w+.*", font_step=3, font_path=path.join(d, "IRANSans.ttf"), background_color="white", max_words=800, mask=twitter_mask,
-            stopwords=stopwords)
+wc = PersianWordCloud(only_persian=True, regexp=r".*\w+.*", font_step=3, font_path=path.join(d, "IRANSans.ttf"),
+            background_color="white", max_words=800, mask=twitter_mask, stopwords=stopwords)
 wc.generate(text)
 
 
 currTime = datetime.datetime.utcnow()
 output_name = currTime.strftime("%d-%m-%Y_%H_%M.png")
-#output_name = "test.png"
 
 # store to file
 wc.to_file(path.join(d, output_name))
