@@ -11,6 +11,7 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 from hazm import *
 from utils import *
+import traceback
 
 d = path.dirname(__file__)
 
@@ -123,6 +124,17 @@ wc = PersianWordCloud(only_persian=True, regexp=r".*\w+.*", font_step=3, font_pa
             background_color="white", max_words=800, mask=twitter_mask, stopwords=stopwords)
 wc.generate(text)
 
+# generate words list
+words = wc.process_text(text)
+try:
+    # try uploading to beepaste!
+    bp_link = send_to_beepaste(words, LastTweetToCheck, datetime.datetime.utcnow(), finderCursor.count())
+    caption = u'توییتر به روایت تصویر پس از پردازش {} توییت!\nاطلاعات بیشتر: {}'.format(tweet_cnt, bp_link)
+except Exception as e:
+    # check if errors occured
+    print("error in bp!")
+    telegram_bot.sendMessage(chat_id=admin_id, text=str(traceback.format_exc()))
+    caption = u'توییتر به روایت تصویر پس از پردازش {} توییت!'.format(tweet_cnt)
 
 currTime = datetime.datetime.utcnow()
 output_name = currTime.strftime("%d-%m-%Y_%H_%M.png")
@@ -138,9 +150,9 @@ auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
 telegram_bot = telegram.Bot(token=telegram_bot_token)
 
-api.update_with_media(path.join(d, output_name), u'توییتر به روایت تصویر پس از پردازش ' + str(tweet_cnt) + u' توییت!')
-wctg = telegram_bot.send_photo(chat_id="@trenditter", photo=open(path.join(d, output_name), 'rb'), caption=u'توییتر به روایت تصویر پس از پردازش ' + str(tweet_cnt) + u' توییت!')
+api.update_with_media(path.join(d, output_name), caption)
+wctg = telegram_bot.send_photo(chat_id="@trenditter", photo=open(path.join(d, output_name), 'rb'), caption=caption)
 
 telegram_bot.forwardMessage(chat_id="322219318", from_chat_id="@trenditter", message_id=wctg.message_id)
 
-# telegram_bot.send_photo(chat_id=admin_id, photo=open(path.join(d, output_name), 'rb'), caption=u'توییتر به روایت تصویر پس از پردازش ' + str(tweet_cnt) + u' توییت!')
+# telegram_bot.send_photo(chat_id=admin_id, photo=open(path.join(d, output_name), 'rb'), caption=caption)

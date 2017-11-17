@@ -10,6 +10,8 @@ import tempfile
 import shutil
 import urllib.request
 from config import *
+import requests
+import json
 
 telegram_bot = telegram.Bot(token=telegram_bot_token)
 normalizer = Normalizer()
@@ -67,6 +69,9 @@ def getURLs(tweet):
     return entities_urls
 
 def getHashtags(tweet):
+    if 'retweeted_status' in tweet:
+        return getHashtags(tweet['retweeted_status'])
+
     if 'extended_tweet' in tweet:
         return getHashtags(tweet['extended_tweet'])
 
@@ -96,7 +101,7 @@ def sendToTelegram(tweet, desc=""):
 
     text = ''
     pre = re.sub("(@[A-Za-z0-9_]+)\S+", " ", tweet_text)
-    pre = normalizer.normalize(pre)
+    # pre = normalizer.normalize(pre)
 
     text += tweet['user']['name'] + u":\n"
     text += pre + '\n'
@@ -265,3 +270,19 @@ def save_file(dir, url):
     img_path = path.join(dir, name)
     urllib.request.urlretrieve(url, img_path)
     return img_path
+
+def send_to_beepaste(dic, from_time, to_time, tweets_cnt):
+    try:
+        tokenRequest = requests.post('https://beta.beepaste.io/api/v1/auth', headers={'Content-Type': 'application/json'}, verify=False)
+        token_json = tokenRequest.json()
+        if token_json['status'] == 'success':
+            token = token_json['X-TOKEN']
+            headers = {'X-TOKEN': token}
+            raw = json.dumps(dic, ensure_ascii=False, indent=1)
+            data = {'raw': raw, 'title': 'کلمات بررسی‌شده توییت‌ها از بازه {} تا {} در {} توییت!'.format(from_time.strftime('%d/%m/%Y %H:%M:%S'), to_time.strftime('%d/%m/%Y %H:%M:%S'), tweets_cnt), 'author': 'Trenditter!'}
+            r = requests.post('https://beta.beepaste.io/api/v1/paste', headers=headers, json=data, verify=False)
+            return r.json()['paste']['shorturl']
+        else:
+            raise Exception('Failed!')
+    except Exception as e:
+        raise e
