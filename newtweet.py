@@ -10,7 +10,7 @@ from mongoHandler import MongoHandler
 from config import *
 import re
 import traceback
-from utils import create_temp, remove_dir, make_collage, save_file, telegram_bot, retweetTweet
+from utils import create_temp, remove_dir, make_collage, save_file, telegram_bot, retweetTweet, createCollectionName
 from os import path
 
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
@@ -23,41 +23,56 @@ maxRetweets = None
 checkedTweets_likes = {}
 checkedTweets_rts = {}
 
-mongo = MongoHandler(mongo_connString, mongo_db, mongo_collection)
+mongo = MongoHandler(mongo_connString, mongo_db, createCollectionName(mongo_collection_format, datetime.datetime.utcnow()))
 LastTweetToCheck = datetime.datetime.utcnow() - datetime.timedelta(seconds=checkTweetsWithin)
 findQuery = {"retweeted_status.created_at": {'$gte': LastTweetToCheck}}
-finderCursor = mongo._collection.find(findQuery).limit(4000).sort('retweeted_status.favorite_count', pymongo.DESCENDING)
-print(finderCursor.count())
-for tweet in finderCursor:
-    try:
-        if tweet['retweeted_status']['id_str'] in checkedTweets_likes:
-            continue
-        checkedTweets_likes[ tweet['retweeted_status']['id_str'] ] = 1
-        realStatus = api.get_status(tweet['retweeted_status']['id_str'])
-        if realStatus.retweeted:
-            continue
-        if maxLikes is None:
-            maxLikes = tweet.copy()
-            break
-    except:
-        print(tweet['retweeted_status']['id_str'])
 
-print("got likes!")
+def iterateTweets(findQuery):
+    global mongo
+    global maxLikes
+    global checkedTweets_likes
+    global maxRetweets
+    global checkedTweets_rts
+    global api
 
-finderCursor = mongo._collection.find(findQuery).limit(4000).sort('retweeted_status.retweet_count', pymongo.DESCENDING)
-for tweet in finderCursor:
-    try:
-        if tweet['retweeted_status']['id_str'] in checkedTweets_rts:
-            continue
-        checkedTweets_rts[ tweet['retweeted_status']['id_str'] ] = 1
-        realStatus = api.get_status(tweet['retweeted_status']['id_str'])
-        if realStatus.retweeted:
-            continue
-        if maxRetweets is None:
-            maxRetweets = tweet.copy()
-            break
-    except:
-        print(tweet['retweeted_status']['id_str'])
+    finderCursor = mongo._collection.find(findQuery).limit(4000).sort('retweeted_status.favorite_count', pymongo.DESCENDING)
+    print(finderCursor.count())
+    for tweet in finderCursor:
+        try:
+            if tweet['retweeted_status']['id_str'] in checkedTweets_likes:
+                continue
+            checkedTweets_likes[ tweet['retweeted_status']['id_str'] ] = 1
+            realStatus = api.get_status(tweet['retweeted_status']['id_str'])
+            if realStatus.retweeted:
+                continue
+            if maxLikes is None:
+                maxLikes = tweet.copy()
+                break
+        except:
+            print(tweet['retweeted_status']['id_str'])
+
+    print("got likes!")
+
+    finderCursor = mongo._collection.find(findQuery).limit(4000).sort('retweeted_status.retweet_count', pymongo.DESCENDING)
+    for tweet in finderCursor:
+        try:
+            if tweet['retweeted_status']['id_str'] in checkedTweets_rts:
+                continue
+            checkedTweets_rts[ tweet['retweeted_status']['id_str'] ] = 1
+            realStatus = api.get_status(tweet['retweeted_status']['id_str'])
+            if realStatus.retweeted:
+                continue
+            if maxRetweets is None:
+                maxRetweets = tweet.copy()
+                break
+        except:
+            print(tweet['retweeted_status']['id_str'])
+
+iterateTweets(findQuery)
+
+if LastTweetToCheck.date() != datetime.datetime.utcnow().date():
+    mongo.set_db_and_collection(mongo_db, createCollectionName(mongo_collection_format, LastTweetToCheck))
+    iterateTweets(findQuery)
 
 print("got retweets!")
 

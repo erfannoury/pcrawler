@@ -5,23 +5,32 @@ import time
 from mongoHandler import MongoHandler
 from config import *
 from os import path
-from utils import getHashtags
+from utils import getHashtags, createCollectionName
 
 d = path.dirname(__file__)
-
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
+last_updated = datetime.datetime.utcnow()
+collection_name = createCollectionName(mongo_collection_format, last_updated)
 
 # This is the listener, resposible for receiving data
 class StdOutListener(tweepy.StreamListener):
 
-    _mongo = MongoHandler(mongo_connString, mongo_db, mongo_collection)
+    _mongo = MongoHandler(mongo_connString, mongo_db, collection_name)
     _blacklist = open(path.join(d, 'users_blacklist.txt')).read().split()
     _hashtags_blacklist = open(path.join(d, 'hashtags_blacklist.txt')).read().split()
 
     def on_data(self, data):
         tweet = json.loads(data)
+        global last_updated
+        global collection_name
+
+        if last_updated.date() != datetime.datetime.utcnow().date():
+            last_updated = datetime.datetime.utcnow()
+            collection_name = createCollectionName(mongo_collection_format, last_updated)
+            self._mongo.set_collection(collection_name)
+
         if 'retweeted_status' in tweet:
             tcreated = datetime.datetime.strptime(tweet['retweeted_status']['created_at'], '%a %b %d %H:%M:%S %z %Y').replace(tzinfo=None)
             tweet['retweeted_status']['created_at'] = tcreated

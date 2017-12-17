@@ -14,10 +14,15 @@ class MongoHandler(object):
 
         return self._connection
 
-    def set_db_and_collection(self, db_name, collection_name):
+    def set_db_and_collection(self, db_name, collection_name=None):
         conn = self.get_connection(self._connString)
         self._db = conn[db_name]
-        self._collection = self._db[collection_name]
+        if collection_name is not None:
+            self._collection = self._db[collection_name]
+
+    def set_collection(self, collection_name):
+        if self._db is not None:
+            self._collection = self._db[collection_name]
 
     def insert(self, data):
         collection = self._collection
@@ -33,7 +38,7 @@ class MongoHandler(object):
         ret = collection.find_one({'_id': ObjectId(id)})
         return ret
 
-    def __init__(self, connString, db_name, collection_name):
+    def __init__(self, connString, db_name, collection_name=None):
         self._connString = connString
         self.get_connection(connString)
         self.set_db_and_collection(db_name, collection_name)

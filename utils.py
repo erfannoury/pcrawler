@@ -16,6 +16,9 @@ import json
 telegram_bot = telegram.Bot(token=telegram_bot_token)
 normalizer = Normalizer()
 
+def createCollectionName(fmt, currDate):
+    return fmt.format(currDate.strftime("%Y-%m-%d"))
+
 def getTweetText(tweet):
     # gets the main tweet text!
     if 'extended_tweet' in tweet:
