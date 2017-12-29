@@ -1,6 +1,7 @@
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 
+
 class MongoHandler(object):
 
     _connString = None
