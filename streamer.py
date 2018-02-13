@@ -78,13 +78,21 @@ class StdOutListener(tweepy.StreamListener):
                 '%a %b %d %H:%M:%S %z %Y'
             ).replace(tzinfo=None)
             tweet['retweeted_status']['created_at'] = tcreated
-
-            self.retweets_mongo.insert({
-                '_id': tweet['id_str'],
-                'user_id': uid,
-                'retweeted_id': tweet['retweeted_status']['id_str'],
-                'retweeted_user_id': tweet['retweeted_status']['user']['id_str']
-            })
+            try:
+                self.retweets_mongo.insert({
+                    '_id': tweet['id_str'],
+                    'user_id': uid,
+                    'retweeted_id': tweet['retweeted_status']['id_str'],
+                    'retweeted_user_id': tweet[
+                        'retweeted_status']['user']['id_str']
+                })
+            except Exception as e:
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                print('=' * 20 + ' EXCEPTION IN SAVING RETWEET ' + '=' * 20)
+                print(e)
+                print('Exception occured at line', exc_tb.tb_lineno)
+                print('=' * 69)
+                pass
 
             if not self.tweets_redis.exists(
                 tweet['retweeted_status']['id_str']):
